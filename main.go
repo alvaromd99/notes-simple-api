@@ -3,11 +3,13 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"slices"
 	"strconv"
 	"sync"
+	"time"
 )
 
 // Test endpoints
@@ -97,9 +99,9 @@ func getNoteById(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error encoding JSON.", http.StatusInternalServerError)
 		return
 	}
-}
 
-// No devolvemos la nota y así es mejor para usarlo en todos los métodos
+	// No devolvemos la nota y así es mejor para usarlo en todos los métodos
+}
 func findNoteById(id int, notes *[]Note) (int, bool) {
 	for i, n := range *notes {
 		if n.Id == id {
@@ -311,15 +313,28 @@ func modifyNote(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func loggerMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		next.ServeHTTP(w, r)
+		log.Printf("%s %s %v", r.Method, r.URL.Path, time.Since(start))
+	})
+}
+
 func main() {
-	http.HandleFunc("GET /notes", getNotes)
-	http.HandleFunc("GET /notes/{id}", getNoteById)
-	http.HandleFunc("POST /notes", addNote)
-	http.HandleFunc("PATCH /notes/{id}", modifyNote)
-	http.HandleFunc("DELETE /notes/{id}", deleteNoteById)
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("GET /notes", getNotes)
+	mux.HandleFunc("GET /notes/{id}", getNoteById)
+	mux.HandleFunc("POST /notes", addNote)
+	mux.HandleFunc("PATCH /notes/{id}", modifyNote)
+	mux.HandleFunc("DELETE /notes/{id}", deleteNoteById)
+
+	// Envolvemos el mux con el middleware
+	wrappedMux := loggerMiddleware(mux)
 
 	fmt.Println("Server starting on port :8080...")
-	if err := http.ListenAndServe(":8080", nil); err != nil {
+	if err := http.ListenAndServe(":8080", wrappedMux); err != nil {
 		fmt.Printf("Server failed to start: %v", err)
 	}
 }
