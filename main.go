@@ -317,11 +317,13 @@ func loggerMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		next.ServeHTTP(w, r)
+		// %v es un placeholder que acepta todo tipo de valores
 		log.Printf("%s %s %v", r.Method, r.URL.Path, time.Since(start))
 	})
 }
 
 func main() {
+	// Multiplexer (enrutador)
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /notes", getNotes)
